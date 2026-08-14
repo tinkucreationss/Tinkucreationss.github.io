@@ -34,10 +34,53 @@ body{min-width:320px}.site-header{height:76px;background:var(--nav);color:#fff;d
 body.modal-open{overflow:hidden}.button{border:0;cursor:pointer;font-family:inherit}.project-modal{position:fixed;inset:0;background:rgba(8,13,29,.55);display:none;align-items:center;justify-content:center;padding:20px;z-index:1000}.project-modal.show{display:flex}.modal-box{width:min(360px,100%);background:#fff;border-radius:22px;padding:24px 20px 20px;box-shadow:0 20px 60px rgba(0,0,0,.25);position:relative;text-align:center}.modal-close{position:absolute;right:12px;top:10px;width:32px;height:32px;border:0;border-radius:50%;background:#f1f3f5;color:#555;font-size:22px;line-height:1;cursor:pointer}.modal-box h3{margin:4px 30px 18px;font-size:18px;color:#1f2937;line-height:1.35}.modal-section-title{font-size:12px;text-transform:uppercase;letter-spacing:.7px;color:#8a94a6;margin-bottom:12px}.modal-links{display:flex;flex-direction:column;gap:9px}.modal-button{display:flex;align-items:center;justify-content:center;min-height:40px;padding:8px 16px;border-radius:22px;background:#008fbd;color:#fff;text-decoration:none;font-size:14px;font-weight:700}.modal-button:hover{background:#007aa2}.no-links{color:#8a94a6;font-size:13px}@media(max-width:620px){.modal-box{width:min(340px,100%);padding:22px 16px 18px}}
 </style>
 <style>.static-project{display:block !important;}</style>
+<style>
+.menu-toggle{border:0;background:transparent;color:#fff;font:inherit;cursor:pointer;padding:10px 18px;border-radius:10px}
+.menu-toggle:hover{background:rgba(255,255,255,.12)}
+.menu-toggle span{margin-left:10px}
+.site-menu{position:fixed;inset:0;background:rgba(8,13,29,.48);display:none;z-index:2000}
+.site-menu.show{display:block}
+.site-menu-box{position:absolute;top:0;left:0;width:min(310px,86vw);height:100%;background:#fff;padding:28px 20px;box-shadow:10px 0 35px rgba(0,0,0,.2)}
+.site-menu-box h2{margin:5px 0 22px;color:#2f4b70;font-size:24px;font-weight:600}
+.site-menu-box a{display:block;padding:13px 12px;margin:4px 0;border-radius:10px;color:#292929;text-decoration:none;font-size:16px}
+.site-menu-box a:hover{background:#f0f6ff;color:#0848dc}
+.site-menu-close{position:absolute;right:12px;top:10px;width:34px;height:34px;border:0;border-radius:50%;background:#f1f3f5;color:#555;font-size:23px;cursor:pointer}
+.site-footer{margin-top:55px;padding:24px 20px;background:#f3f5f8;text-align:center;color:#667085;font-size:14px}
+.site-footer nav{display:flex;justify-content:center;gap:16px;flex-wrap:wrap;margin-top:10px}
+.site-footer a{color:#315b91;text-decoration:none}
+.site-footer a:hover{text-decoration:underline}
+</style>
+<style>
+.site-page{display:none;max-width:760px;margin:0 auto}
+.site-page.active{display:block}
+.site-page h1{font-size:32px;color:#2f4b70;font-weight:500;margin:0 0 22px}
+.site-page h2{font-size:21px;color:#2f4b70;margin:30px 0 10px}
+.site-page p,.site-page li{font-size:16px;line-height:1.75}
+.site-page ul,.site-page ol{padding-left:24px}
+.site-page .back-home{display:inline-block;margin-bottom:24px;color:#315b91;text-decoration:none;cursor:pointer}
+.site-page .social-button{display:inline-block;margin:6px 8px 6px 0;padding:10px 16px;border-radius:22px;background:#008fbd;color:#fff;text-decoration:none;font-weight:700;font-size:14px}
+.site-page .contact-box{padding:20px;background:#f5f8fc;border-radius:16px;margin-top:18px}
+@media(max-width:700px){.site-page h1{font-size:29px}.site-page p,.site-page li{font-size:15px}}
+</style>
 </head>
 <body>
-<header class="site-header">☰ <span style="margin-left:10px">Menu</span></header>
+<header class="site-header">
+  <button class="menu-toggle" type="button" onclick="toggleSiteMenu()" aria-label="Open menu">☰ <span>Menu</span></button>
+</header>
+<div class="site-menu" id="siteMenu" aria-hidden="true">
+  <div class="site-menu-box">
+    <button class="site-menu-close" type="button" onclick="toggleSiteMenu()" aria-label="Close menu">×</button>
+    <h2>Menu</h2>
+    <a href="index.html">Home</a>
+    <a href="#" onclick="showSitePage('about');return false;">About Us</a>
+    <a href="#" onclick="showSitePage('contact');return false;">Contact Us</a>
+    <a href="#" onclick="showSitePage('privacy');return false;">Privacy Policy</a>
+    <a href="#" onclick="showSitePage('terms');return false;">Terms &amp; Conditions</a>
+    <a href="#" onclick="showSitePage('disclaimer');return false;">Disclaimer</a>
+  </div>
+</div>
 <div class="site"><main class="content">
+<div id="homeContent">
 <section class="intro">
 <h1>TinkuCreationss</h1>
 <p>Hello and welcome to TinkuCreationss! My name is Vishnu, and I sincerely thank you for visiting my website. I am the creator behind TinkuCreationss, a digital platform where I share my passion for mobile video editing, creative design, and digital content creation. What started as an interest in video editing gradually became a platform where I could share my editing projects, ideas, and resources with other creators.</p>
@@ -61,6 +104,102 @@ body.modal-open{overflow:hidden}.button{border:0;cursor:pointer;font-family:inhe
 </article>
 </div>
 </section>
+<section class="site-page" id="page-about">
+<a class="back-home" onclick="showSitePage('home')">← Back to Home</a>
+<h1>About Me &amp; TinkuCreationss</h1>
+<h2>About Me</h2>
+<p>Hello! My name is Vishnu. I am the creator of TinkuCreationss. I am passionate about mobile video editing, creative design, and digital content creation.</p>
+<p>I started exploring video editing because I enjoyed creating creative edits and experimenting with different editing ideas. Over time, this interest developed into TinkuCreationss, where I can share my editing projects and resources with other creators.</p>
+<h2>About My Channel</h2>
+<p><strong>TinkuCreationss</strong> is my creative platform where I share video-editing related content, editing ideas, project previews, and resources for creators.</p>
+<p>The website and my social-media channels work together: the videos show the editing ideas and project previews, while this website provides the related projects and resources in an organized way.</p>
+<a class="social-button" href="https://youtube.com/@tinkucreationss?si=AxxNkaapoyNUXzuW" target="_blank" rel="noopener">YouTube Channel</a>
+<a class="social-button" href="https://www.instagram.com/tinku_creationss?igsh=MXVvZzF5a2M5MXo2Mg==" target="_blank" rel="noopener">Instagram</a>
+<h2>How TinkuCreationss Works</h2>
+<ol>
+<li>I create and edit mobile video projects.</li>
+<li>I prepare a project preview so creators can see the editing style before opening it.</li>
+<li>I publish projects with codes such as TC001, TC002, TC003, and so on.</li>
+<li>Where a project requires specific fonts or resources, the relevant links are provided with the project.</li>
+<li>I regularly add new projects so creators can discover more editing ideas and resources.</li>
+<li>I share project previews and editing content through my YouTube and Instagram channels.</li>
+</ol>
+<h2>Our Goal</h2>
+<p>My goal is to build TinkuCreationss into a useful platform for creators who enjoy mobile video editing and want to discover new editing projects and ideas.</p>
+</section>
+
+<section class="site-page" id="page-contact">
+<a class="back-home" onclick="showSitePage('home')">← Back to Home</a>
+<h1>Contact Us</h1>
+<p>For project updates, editing content, and new resources, connect with TinkuCreationss through the official YouTube channel and Instagram page.</p>
+<div class="contact-box">
+<h2>YouTube Channel</h2>
+<p>Follow TinkuCreationss on YouTube for video-editing content, project previews, and new uploads.</p>
+<a class="social-button" href="https://youtube.com/@tinkucreationss?si=AxxNkaapoyNUXzuW" target="_blank" rel="noopener">Open YouTube Channel</a>
+<h2>Instagram</h2>
+<p>Follow TinkuCreationss on Instagram for editing content, previews, and updates.</p>
+<a class="social-button" href="https://www.instagram.com/tinku_creationss?igsh=MXVvZzF5a2M5MXo2Mg==" target="_blank" rel="noopener">Open Instagram</a>
+</div>
+</section>
+
+<section class="site-page" id="page-privacy">
+<a class="back-home" onclick="showSitePage('home')">← Back to Home</a>
+<h1>Privacy Policy</h1>
+<p>This Privacy Policy explains how TinkuCreationss handles information when you visit this website.</p>
+<h2>Information We Collect</h2>
+<p>TinkuCreationss does not intentionally ask visitors to provide sensitive personal information through the project pages. If you contact us directly, we may receive the information you choose to include in your message.</p>
+<h2>Cookies and Advertising</h2>
+<p>If advertising services such as Google AdSense are added in the future, third-party advertising providers may use cookies or similar technologies to provide and measure advertisements, subject to their own policies and applicable settings.</p>
+<h2>Analytics</h2>
+<p>If analytics services are added, they may collect information such as pages visited, device or browser information, and general usage data to help improve the website.</p>
+<h2>Third-Party Links</h2>
+<p>Project and font links may take you to third-party websites or services. TinkuCreationss is not responsible for the privacy practices or content of those third-party services.</p>
+<h2>Updates</h2>
+<p>This Privacy Policy may be updated when website features or services change. The latest version will be published on this page.</p>
+</section>
+
+<section class="site-page" id="page-terms">
+<a class="back-home" onclick="showSitePage('home')">← Back to Home</a>
+<h1>Terms &amp; Conditions</h1>
+<p>By using TinkuCreationss, you agree to use the website and its resources responsibly and in accordance with these terms.</p>
+<h2>Use of Projects</h2>
+<p>Projects and resources are provided for their stated purpose. You are responsible for using them in accordance with applicable laws and the terms of any third-party service linked from the website.</p>
+<h2>Third-Party Links</h2>
+<p>TinkuCreationss may provide links to third-party project, font, or other services. Those services have their own terms and policies, and your use of them is subject to those terms.</p>
+<h2>Accuracy and Availability</h2>
+<p>We try to keep project information and links accurate, but a project or external link may occasionally become unavailable or change without notice.</p>
+<h2>Intellectual Property</h2>
+<p>Do not copy, redistribute, or claim ownership of content that belongs to another creator or third party. Respect the applicable copyright and licensing terms for every resource you use.</p>
+<h2>Changes</h2>
+<p>These Terms &amp; Conditions may be updated as the website develops.</p>
+</section>
+
+<section class="site-page" id="page-disclaimer">
+<a class="back-home" onclick="showSitePage('home')">← Back to Home</a>
+<h1>Disclaimer</h1>
+<p>The information and resources published on TinkuCreationss are provided for general informational and creative-use purposes.</p>
+<h2>Third-Party Resources</h2>
+<p>Some project or font links may point to third-party platforms. TinkuCreationss does not control those external platforms and cannot guarantee their availability, content, licensing terms, or privacy practices.</p>
+<h2>Project Results</h2>
+<p>Editing results may vary depending on the device, app version, media files, fonts, and other settings used by the creator.</p>
+<h2>Copyright</h2>
+<p>If you believe material on this website infringes your rights, please contact us with sufficient details so the matter can be reviewed.</p>
+<h2>Advertising</h2>
+<p>If advertisements are displayed on this website in the future, advertisements may be provided by third-party advertising services. TinkuCreationss does not endorse every advertisement shown automatically by an advertising platform.</p>
+<h2>Changes</h2>
+<p>This disclaimer may be updated when the website's content, services, or monetization methods change.</p>
+</section>
+
+<footer class="site-footer">
+  <div>TinkuCreationss</div>
+  <nav>
+    <a href="#" onclick="showSitePage('about');return false;">About</a>
+    <a href="#" onclick="showSitePage('contact');return false;">Contact</a>
+    <a href="#" onclick="showSitePage('privacy');return false;">Privacy</a>
+    <a href="#" onclick="showSitePage('terms');return false;">Terms</a>
+    <a href="#" onclick="showSitePage('disclaimer');return false;">Disclaimer</a>
+  </nav>
+</footer>
 </main></div>
 <script>
 const projects=[
@@ -125,5 +264,38 @@ function hideStaticPopup(){document.getElementById('staticProjectModal').classLi
     <div class="modal-links" id="modalLinks"></div>
   </div>
 </div>
+<script>
+function toggleSiteMenu(){
+  const menu=document.getElementById("siteMenu");
+  const open=!menu.classList.contains("show");
+  menu.classList.toggle("show",open);
+  menu.setAttribute("aria-hidden",String(!open));
+}
+document.getElementById("siteMenu").addEventListener("click",function(e){
+  if(e.target===this) toggleSiteMenu();
+});
+document.addEventListener("keydown",function(e){
+  if(e.key==="Escape"){
+    const menu=document.getElementById("siteMenu");
+    if(menu.classList.contains("show")) toggleSiteMenu();
+  }
+});
+</script>
+<script>
+function showSitePage(page){
+  document.querySelectorAll('.site-page').forEach(function(el){el.classList.remove('active');});
+  var home = document.getElementById('homeContent');
+  if(page === 'home'){
+    if(home) home.style.display = '';
+  }else{
+    if(home) home.style.display = 'none';
+    var target = document.getElementById('page-' + page);
+    if(target) target.classList.add('active');
+  }
+  var menu=document.getElementById('siteMenu');
+  if(menu) menu.classList.remove('show');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+</script>
 </body>
 </html>
