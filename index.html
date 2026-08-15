@@ -202,13 +202,37 @@ function getFonts(p){
   if(typeof p.fonts === "string" && p.fonts.trim()) return [p.fonts];
   return [p.font1,p.font2,p.font3,p.font4,p.font5].filter(Boolean);
 }
+function openInAlightMotion(index){
+  const p = projects[index];
+  if (!p || !p.link) return;
+
+  const url = p.link;
+
+  // Android: ask the OS to open the Alight Motion app directly.
+  if (/Android/i.test(navigator.userAgent)) {
+    const parsed = new URL(url);
+    const intentUrl =
+      "intent://" + parsed.host + parsed.pathname + parsed.search +
+      "#Intent;scheme=" + parsed.protocol.replace(":", "") +
+      ";package=com.alightcreative.motion" +
+      ";S.browser_fallback_url=" + encodeURIComponent(url) +
+      ";end";
+
+    window.location.href = intentUrl;
+    return;
+  }
+
+  // iPhone/iPad and other devices: use the normal Alight Motion share link.
+  window.location.href = url;
+}
+
 function openProjectPopup(index){
   const p=projects[index];
   const fonts=getFonts(p);
   const modal=document.getElementById("projectModal");
   document.getElementById("modalTitle").textContent=p.code ? `${p.code} — ${p.title}` : p.title;
   const links=[];
-  if(p.link) links.push(`<a class="modal-button" href="${p.link}" target="_blank" rel="noopener">Project ↗</a>`);
+  if(p.link) links.push(`<button class="modal-button" type="button" onclick="openInAlightMotion(${index})">Project ↗</button>`);
   fonts.forEach((font,i)=>links.push(`<a class="modal-button" href="${font}" ${String(font).startsWith("data:") ? `download="VIRUST.ttf"` : `target="_blank" rel="noopener"`}>Font ${i+1} ↗</a>`));
   document.getElementById("modalLinks").innerHTML=links.length ? links.join("") : '<span class="no-links">Links will appear here.</span>';
   modal.classList.add("show");
