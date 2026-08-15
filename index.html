@@ -92,7 +92,7 @@ body.modal-open{overflow:hidden}.button{border:0;cursor:pointer;font-family:inhe
 <div><h2>TinkuCreationss</h2><p>Code: 511</p></div>
 </div>
 <div class="search-wrap"><span class="search-icon">⌕</span><input id="search" class="search" placeholder="Search (Ex: TC001, Wedding, 28)"></div>
-<div id="grid" class="grid"></div>
+<div id="grid" class="grid" aria-live="polite"></div>
 </section>
 </div>
 
@@ -237,9 +237,14 @@ function render(){
   `).join("") || '<p style="text-align:center;color:#777">No projects found.</p>';
 }
 document.getElementById("search").addEventListener("input",render);
+window.addEventListener("DOMContentLoaded",render);
+
 document.getElementById("projectModal").addEventListener("click",e=>{if(e.target.id==="projectModal")closeProjectPopup()});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeProjectPopup()});
-render();
+try { render(); } catch (e) {
+  const grid = document.getElementById("grid");
+  if (grid) grid.innerHTML = '<p style="text-align:center;color:#777">Projects are loading. Please refresh once.</p>';
+}
 </script>
 <div class="project-modal" id="projectModal" aria-hidden="true">
   <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
@@ -271,6 +276,7 @@ document.addEventListener("keydown",function(e){
   function renderPage(){
     var page = (location.hash || "#home").slice(1);
     var allowed = ["home","about","contact","privacy","terms","disclaimer"];
+    if (!location.hash) page = "home";
     if (allowed.indexOf(page) === -1) page = "home";
 
     var home = document.getElementById("homeContent");
