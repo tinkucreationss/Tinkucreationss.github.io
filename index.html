@@ -38,6 +38,16 @@ body{min-width:320px}.site-header{height:76px;background:var(--nav);color:#fff;d
  .grid{grid-template-columns:1fr;gap:22px}.preview,.single{height:190px}
  .title{font-size:17px}.button{font-size:16px;padding:9px 24px}
 }
+
+.preview-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}
+.preview-actions .button{flex:1;min-width:105px;padding:9px 10px;border-radius:18px;font-size:13px;font-weight:700;background:#008fbd;color:#fff}
+.preview-actions .tutorial-button{background:#e62117}
+.image-preview-modal{position:fixed;inset:0;background:rgba(8,13,29,.82);display:none;align-items:center;justify-content:center;padding:18px;z-index:1100}
+.image-preview-modal.show{display:flex}
+.image-preview-box{position:relative;width:min(620px,100%);background:#fff;border-radius:16px;padding:12px}
+.image-preview-box img{display:block;width:100%;max-height:75vh;object-fit:contain;border-radius:10px}
+.image-preview-title{text-align:center;font-weight:700;color:#1f2937;padding:9px 36px 2px}
+
 </style>
 
 <style>
@@ -72,6 +82,39 @@ body.modal-open{overflow:hidden}.button{border:0;cursor:pointer;font-family:inhe
 .site-page .contact-box{padding:20px;background:#f5f8fc;border-radius:16px;margin-top:18px}
 @media(max-width:700px){.site-page h1{font-size:29px}.site-page p,.site-page li{font-size:15px}}
 </style>
+
+<style id="home-social-buttons">
+.social-links-home{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-top:20px;
+}
+.social-link-home{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  min-width:132px;
+  padding:11px 19px;
+  border-radius:24px;
+  color:#fff;
+  text-decoration:none;
+  font-size:14px;
+  font-weight:700;
+  transition:opacity .2s ease,transform .2s ease;
+}
+.social-link-home:hover{opacity:.9;transform:translateY(-2px)}
+.youtube-link{background:#e62117}
+.instagram-link{background:linear-gradient(45deg,#f58529,#dd2a7b,#8134af,#515bd4)}
+.social-icon{font-size:16px;line-height:1}
+@media(max-width:700px){
+  .social-links-home{gap:10px;margin-top:18px}
+  .social-link-home{min-width:120px;padding:10px 16px;font-size:14px}
+}
+</style>
+
 </head>
 <body>
 <header class="site-header">
@@ -95,6 +138,14 @@ body.modal-open{overflow:hidden}.button{border:0;cursor:pointer;font-family:inhe
 <h1>TinkuCreationss</h1>
 <p>Hello and welcome to TinkuCreationss! My name is Vishnu, and I sincerely thank you for visiting my website. I am the creator behind TinkuCreationss, a digital platform where I share my passion for mobile video editing, creative design, and digital content creation. What started as an interest in video editing gradually became a platform where I could share my editing projects, ideas, and resources with other creators.</p>
 <p>— Vishnu<br><strong>Creator of TinkuCreationss</strong></p>
+<div class="social-links-home" aria-label="Follow TinkuCreationss">
+  <a class="social-link-home youtube-link" href="https://youtube.com/@tinkucreationss?si=AxxNkaapoyNUXzuW" target="_blank" rel="noopener noreferrer" aria-label="Visit TinkuCreationss YouTube channel">
+    <span class="social-icon" aria-hidden="true">▶</span> YouTube
+  </a>
+  <a class="social-link-home instagram-link" href="https://www.instagram.com/tinku_creationss?igsh=MXVvZzF5a2M5MXo2Mg==" target="_blank" rel="noopener noreferrer" aria-label="Visit TinkuCreationss Instagram profile">
+    <span class="social-icon" aria-hidden="true">◎</span> Instagram
+  </a>
+</div>
 </section>
 <section>
 <div class="profile">
@@ -237,15 +288,29 @@ function openInAlightMotion(index){
   window.location.href = url;
 }
 
+
+function openImagePreview(index){
+  const p=projects[index];
+  if(!p || !p.images || !p.images.length) return;
+  document.getElementById("imagePreviewTitle").textContent=(p.code ? p.code+" — " : "")+p.title;
+  document.getElementById("imagePreviewImage").src=p.images[0];
+  document.getElementById("imagePreviewModal").classList.add("show");
+}
+function closeImagePreview(){
+  document.getElementById("imagePreviewModal").classList.remove("show");
+  document.getElementById("imagePreviewImage").src="";
+}
+
 function openProjectPopup(index){
   const p=projects[index];
   const fonts=getFonts(p);
   const modal=document.getElementById("projectModal");
   document.getElementById("modalTitle").textContent=p.code ? `${p.code} — ${p.title}` : p.title;
   const links=[];
+  links.push(`<a class="modal-button" href="https://youtube.com/@tinkucreationss?si=AxxNkaapoyNUXzuW" target="_blank" rel="noopener noreferrer">Tutorial ↗</a>`);
   if(p.link) links.push(`<button class="modal-button" type="button" onclick="openInAlightMotion(${index})">Project ↗</button>`);
   fonts.forEach((font,i)=>links.push(`<a class="modal-button" href="${font}" ${String(font).startsWith("data:") ? `download="VIRUST.ttf"` : `target="_blank" rel="noopener"`}>Font ${i+1} ↗</a>`));
-  document.getElementById("modalLinks").innerHTML=links.length ? links.join("") : '<span class="no-links">Links will appear here.</span>';
+  document.getElementById("modalLinks").innerHTML=links.join("");
   modal.classList.add("show");
   document.body.classList.add("modal-open");
 }
@@ -267,7 +332,9 @@ function render(){
       <div class="preview">${p.images.map(x=>`<img src="${x}" alt="${p.title}">`).join("")}</div>
       <div class="card-body">
         <div class="title">${p.title}</div>
-        <div class="buttons"><button class="button" type="button" onclick="openProjectPopup(${i})">Project</button></div>
+        <div class="buttons">
+          <button class="button" type="button" onclick="openProjectPopup(${i})">Project</button>
+        </div>
       </div>
     </article>
   `).join("") || '<p style="text-align:center;color:#777">No projects found.</p>';
@@ -282,11 +349,19 @@ try { render(); } catch (e) {
   if (grid) grid.innerHTML = '<p style="text-align:center;color:#777">Projects are loading. Please refresh once.</p>';
 }
 </script>
+
+<div class="image-preview-modal" id="imagePreviewModal" onclick="if(event.target===this)closeImagePreview()">
+  <div class="image-preview-box">
+    <button class="modal-close" type="button" onclick="closeImagePreview()" aria-label="Close preview">×</button>
+    <div class="image-preview-title" id="imagePreviewTitle"></div>
+    <img id="imagePreviewImage" src="" alt="Template preview">
+  </div>
+</div>
 <div class="project-modal" id="projectModal" aria-hidden="true">
   <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <button class="modal-close" type="button" onclick="closeProjectPopup()" aria-label="Close">×</button>
     <h3 id="modalTitle">Project</h3>
-    <div class="modal-section-title">Project & Fonts</div>
+    <div class="modal-section-title">Choose an Option</div>
     <div class="modal-links" id="modalLinks"></div>
   </div>
 </div>
