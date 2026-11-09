@@ -314,31 +314,38 @@ function closeProjectPopup(){
 }
 let videoAutoplayObserver = null;
 let videoSoundEnabled = false;
+let activePreviewVideo = null;
 
 function toggleVideoSound(event){
   event.preventDefault();
   event.stopPropagation();
+
   const button = event.currentTarget;
   const preview = button.closest(".preview");
   const video = preview && preview.querySelector("video");
   if (!video) return;
 
   videoSoundEnabled = !videoSoundEnabled;
+
+  // Only the currently visible video should be audible.
   document.querySelectorAll("#grid .preview video").forEach(item => {
-    item.muted = !videoSoundEnabled;
+    item.muted = !(videoSoundEnabled && item === video);
   });
+
   document.querySelectorAll(".video-sound-toggle").forEach(item => {
     item.textContent = videoSoundEnabled ? "🔊" : "🔇";
-    item.setAttribute("aria-label", videoSoundEnabled ? "Mute videos" : "Enable video sound");
+    item.setAttribute("aria-label", videoSoundEnabled ? "Mute video" : "Enable video sound");
   });
 
   if (videoSoundEnabled) {
-    video.muted = false;
     video.play().catch(() => {
-      // If the browser blocks sound, the user can tap the speaker again.
       video.muted = true;
       videoSoundEnabled = false;
-      button.textContent = "🔇";
+      document.querySelectorAll("#grid .preview video").forEach(item => item.muted = true);
+      document.querySelectorAll(".video-sound-toggle").forEach(item => {
+        item.textContent = "🔇";
+        item.setAttribute("aria-label", "Enable video sound");
+      });
     });
   } else {
     video.muted = true;
@@ -348,36 +355,92 @@ function toggleVideoSound(event){
 function setupVideoAutoplay(){
   if (videoAutoplayObserver) videoAutoplayObserver.disconnect();
 
-  const videos = document.querySelectorAll("#grid .preview video");
-  if (!("IntersectionObserver" in window)) {
-    videos.forEach(video => {
-      video.muted = !videoSoundEnabled;
-      video.play().catch(() => {});
-    });
-    return;
-  }
+  const videos = Array.from(document.querySelectorAll("#grid .preview video"));
+  activePreviewVideo = null;
 
-  videoAutoplayObserver = new IntersectionObserver(entries => {
-    entries.forEach(entry => {
-      const video = entry.target;
-      if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
-        // Sound remains enabled after the user explicitly taps the speaker.
-        video.muted = !videoSoundEnabled;
-        video.play().catch(() => {
-          video.muted = true;
-        });
-      } else {
-        video.pause();
-      }
-    });
-  }, { threshold: [0, 0.25, 0.6, 0.8, 1] });
+  if (!videos.length) return;
 
   videos.forEach(video => {
-    video.muted = !videoSoundEnabled;
+    video.muted = true;
+    video.defaultMuted = true;
     video.loop = true;
+    video.autoplay = true;
     video.playsInline = true;
-    videoAutoplayObserver.observe(video);
+    video.setAttribute("muted", "");
+    video.setAttribute("autoplay", "");
+    video.setAttribute("playsinline", "");
+    video.setAttribute("webkit-playsinline", "");
+    video.preload = "auto";
+
+    // Retry playback once the browser has enough data to start.
+    video.addEventListener("canplay", () => {
+      if (video === activePreviewVideo && !document.hidden) {
+        video.play().catch(() => {});
+      }
+    }, { once: true });
   });
+
+  function updateActiveVideo(){
+    if (document.hidden) {
+      videos.forEach(video => video.pause());
+      activePreviewVideo = null;
+      return;
+    }
+
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    let bestVideo = null;
+    let bestRatio = 0;
+
+    videos.forEach(video => {
+      const rect = video.getBoundingClientRect();
+      const visibleHeight = Math.max(0, Math.min(rect.bottom, viewportHeight) - Math.max(rect.top, 0));
+      const ratio = rect.height ? visibleHeight / rect.height : 0;
+
+      if (ratio > bestRatio) {
+        bestRatio = ratio;
+        bestVideo = video;
+      }
+    });
+
+    // Start when a meaningful part of the preview is visible.
+    const nextVideo = bestRatio >= 0.35 ? bestVideo : null;
+
+    videos.forEach(video => {
+      if (video !== nextVideo) video.pause();
+    });
+
+    if (nextVideo && nextVideo !== activePreviewVideo) {
+      activePreviewVideo = nextVideo;
+      // Autoplay with sound is commonly blocked; start muted every time.
+      nextVideo.muted = !videoSoundEnabled;
+      nextVideo.play().catch(() => {
+        nextVideo.muted = true;
+        videoSoundEnabled = false;
+        document.querySelectorAll(".video-sound-toggle").forEach(button => {
+          button.textContent = "🔇";
+          button.setAttribute("aria-label", "Enable video sound");
+        });
+        nextVideo.play().catch(() => {});
+      });
+    } else if (!nextVideo) {
+      activePreviewVideo = null;
+    }
+  }
+
+  if ("IntersectionObserver" in window) {
+    videoAutoplayObserver = new IntersectionObserver(updateActiveVideo, {
+      root: null,
+      rootMargin: "0px",
+      threshold: [0, 0.1, 0.25, 0.35, 0.5, 0.75, 1]
+    });
+    videos.forEach(video => videoAutoplayObserver.observe(video));
+  }
+
+  // Also check on scroll/resize: this helps browsers that batch observer updates.
+  window.onscroll = updateActiveVideo;
+  window.onresize = updateActiveVideo;
+  document.onvisibilitychange = updateActiveVideo;
+  updateActiveVideo();
 }
 
 function render(){
@@ -391,7 +454,7 @@ function render(){
     });
   document.getElementById("grid").innerHTML = list.map(({p,i}) => `
     <article class="card">
-      <div class="preview">${p.video ? `<video muted loop playsinline webkit-playsinline preload="metadata" poster="${p.images && p.images[0] ? p.images[0] : ""}" aria-label="${p.title} preview" style="width:100%;height:100%;object-fit:contain;display:block;background:#000"><source src="${p.video}" type="video/mp4">Your browser does not support video playback.</video><button class="video-sound-toggle" type="button" onclick="toggleVideoSound(event)" aria-label="Enable video sound">🔇</button>` : p.images.map(x=>`<img src="${x}" alt="${p.title}">`).join("")}</div>
+      <div class="preview">${p.video ? `<video autoplay muted loop playsinline webkit-playsinline preload="auto" poster="${p.images && p.images[0] ? p.images[0] : ""}" aria-label="${p.title} preview" style="width:100%;height:100%;object-fit:contain;display:block;background:#000"><source src="${p.video}" type="video/mp4">Your browser does not support video playback.</video><button class="video-sound-toggle" type="button" onclick="toggleVideoSound(event)" aria-label="Enable video sound">🔇</button>` : p.images.map(x=>`<img src="${x}" alt="${p.title}">`).join("")}</div>
       <div class="card-body">
         <div class="title">${p.title}</div>
         <div class="buttons"><button class="button" type="button" onclick="openProjectPopup(${i})">Project</button></div>
