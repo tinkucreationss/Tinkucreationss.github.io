@@ -311,6 +311,41 @@ function closeProjectPopup(){
   document.getElementById("projectModal").classList.remove("show");
   document.body.classList.remove("modal-open");
 }
+let videoAutoplayObserver = null;
+
+function setupVideoAutoplay(){
+  if (videoAutoplayObserver) videoAutoplayObserver.disconnect();
+
+  const videos = document.querySelectorAll("#grid .preview video");
+  if (!("IntersectionObserver" in window)) {
+    videos.forEach(video => {
+      video.muted = true;
+      video.play().catch(() => {});
+    });
+    return;
+  }
+
+  videoAutoplayObserver = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      const video = entry.target;
+      if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
+        // Muted autoplay is supported by mobile browsers.
+        video.muted = true;
+        video.play().catch(() => {});
+      } else {
+        video.pause();
+      }
+    });
+  }, { threshold: [0, 0.25, 0.6, 0.8, 1] });
+
+  videos.forEach(video => {
+    video.muted = true;
+    video.loop = true;
+    video.playsInline = true;
+    videoAutoplayObserver.observe(video);
+  });
+}
+
 function render(){
   const q = document.getElementById("search").value.toLowerCase().trim();
   const list = projects.map((p,i)=>({p,i}))
@@ -322,13 +357,14 @@ function render(){
     });
   document.getElementById("grid").innerHTML = list.map(({p,i}) => `
     <article class="card">
-      <div class="preview">${p.video ? `<video controls playsinline preload="metadata" poster="${p.images && p.images[0] ? p.images[0] : ""}" style="width:100%;height:100%;object-fit:contain;display:block;background:#000"><source src="${p.video}" type="video/mp4">Your browser does not support video playback.</video>` : p.images.map(x=>`<img src="${x}" alt="${p.title}">`).join("")}</div>
+      <div class="preview">${p.video ? `<video muted loop playsinline webkit-playsinline preload="metadata" poster="${p.images && p.images[0] ? p.images[0] : ""}" aria-label="${p.title} preview" style="width:100%;height:100%;object-fit:contain;display:block;background:#000"><source src="${p.video}" type="video/mp4">Your browser does not support video playback.</video>` : p.images.map(x=>`<img src="${x}" alt="${p.title}">`).join("")}</div>
       <div class="card-body">
         <div class="title">${p.title}</div>
         <div class="buttons"><button class="button" type="button" onclick="openProjectPopup(${i})">Project</button></div>
       </div>
     </article>
   `).join("") || '<p style="text-align:center;color:#777">No projects found.</p>';
+  setupVideoAutoplay();
 }
 document.getElementById("search").addEventListener("input",render);
 window.addEventListener("DOMContentLoaded",render);
