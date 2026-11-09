@@ -26,7 +26,8 @@ body{min-width:320px}.site-header{height:76px;background:var(--nav);color:#fff;d
 .search-wrap{position:relative;margin:0 auto 28px;max-width:420px}.search{width:100%;height:58px;border:1px solid #ddd;border-radius:35px;box-shadow:0 7px 22px rgba(0,0,0,.12);padding:0 18px 0 54px;font-size:17px;outline:0}
 .search-icon{position:absolute;left:20px;top:17px;color:#8b92a0;font-size:24px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}
 .card{background:#fff;border-radius:0 0 15px 15px;box-shadow:0 4px 14px rgba(0,0,0,.09);overflow:hidden}
-.preview{height:140px;background:#eee;padding:0;display:flex;align-items:center;justify-content:center}.preview img{width:100%;height:100%;object-fit:contain;display:block}
+.preview{height:140px;background:#eee;padding:0;display:flex;align-items:center;justify-content:center;position:relative}.preview img{width:100%;height:100%;object-fit:contain;display:block}
+.video-sound-toggle{position:absolute;right:10px;bottom:10px;z-index:2;width:38px;height:38px;border:0;border-radius:50%;background:rgba(0,0,0,.68);color:#fff;font-size:19px;display:flex;align-items:center;justify-content:center;cursor:pointer}
 .single{height:140px;background:#000;display:flex;align-items:center;justify-content:center;color:#fff;font-size:26px}
 .card-body{text-align:center;padding:13px 8px 16px}.title{font-size:15px;line-height:1.35;font-weight:500;min-height:40px;margin:0 0 10px}
 .buttons{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}.button{display:inline-flex;background:var(--blue);color:#fff;text-decoration:none;border-radius:22px;padding:8px 24px;font-weight:700;font-size:14px}.button.fonts{background:var(--blue)}
@@ -312,6 +313,37 @@ function closeProjectPopup(){
   document.body.classList.remove("modal-open");
 }
 let videoAutoplayObserver = null;
+let videoSoundEnabled = false;
+
+function toggleVideoSound(event){
+  event.preventDefault();
+  event.stopPropagation();
+  const button = event.currentTarget;
+  const preview = button.closest(".preview");
+  const video = preview && preview.querySelector("video");
+  if (!video) return;
+
+  videoSoundEnabled = !videoSoundEnabled;
+  document.querySelectorAll("#grid .preview video").forEach(item => {
+    item.muted = !videoSoundEnabled;
+  });
+  document.querySelectorAll(".video-sound-toggle").forEach(item => {
+    item.textContent = videoSoundEnabled ? "🔊" : "🔇";
+    item.setAttribute("aria-label", videoSoundEnabled ? "Mute videos" : "Enable video sound");
+  });
+
+  if (videoSoundEnabled) {
+    video.muted = false;
+    video.play().catch(() => {
+      // If the browser blocks sound, the user can tap the speaker again.
+      video.muted = true;
+      videoSoundEnabled = false;
+      button.textContent = "🔇";
+    });
+  } else {
+    video.muted = true;
+  }
+}
 
 function setupVideoAutoplay(){
   if (videoAutoplayObserver) videoAutoplayObserver.disconnect();
@@ -319,7 +351,7 @@ function setupVideoAutoplay(){
   const videos = document.querySelectorAll("#grid .preview video");
   if (!("IntersectionObserver" in window)) {
     videos.forEach(video => {
-      video.muted = true;
+      video.muted = !videoSoundEnabled;
       video.play().catch(() => {});
     });
     return;
@@ -329,9 +361,11 @@ function setupVideoAutoplay(){
     entries.forEach(entry => {
       const video = entry.target;
       if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
-        // Muted autoplay is supported by mobile browsers.
-        video.muted = true;
-        video.play().catch(() => {});
+        // Sound remains enabled after the user explicitly taps the speaker.
+        video.muted = !videoSoundEnabled;
+        video.play().catch(() => {
+          video.muted = true;
+        });
       } else {
         video.pause();
       }
@@ -339,7 +373,7 @@ function setupVideoAutoplay(){
   }, { threshold: [0, 0.25, 0.6, 0.8, 1] });
 
   videos.forEach(video => {
-    video.muted = true;
+    video.muted = !videoSoundEnabled;
     video.loop = true;
     video.playsInline = true;
     videoAutoplayObserver.observe(video);
@@ -357,7 +391,7 @@ function render(){
     });
   document.getElementById("grid").innerHTML = list.map(({p,i}) => `
     <article class="card">
-      <div class="preview">${p.video ? `<video muted loop playsinline webkit-playsinline preload="metadata" poster="${p.images && p.images[0] ? p.images[0] : ""}" aria-label="${p.title} preview" style="width:100%;height:100%;object-fit:contain;display:block;background:#000"><source src="${p.video}" type="video/mp4">Your browser does not support video playback.</video>` : p.images.map(x=>`<img src="${x}" alt="${p.title}">`).join("")}</div>
+      <div class="preview">${p.video ? `<video muted loop playsinline webkit-playsinline preload="metadata" poster="${p.images && p.images[0] ? p.images[0] : ""}" aria-label="${p.title} preview" style="width:100%;height:100%;object-fit:contain;display:block;background:#000"><source src="${p.video}" type="video/mp4">Your browser does not support video playback.</video><button class="video-sound-toggle" type="button" onclick="toggleVideoSound(event)" aria-label="Enable video sound">🔇</button>` : p.images.map(x=>`<img src="${x}" alt="${p.title}">`).join("")}</div>
       <div class="card-body">
         <div class="title">${p.title}</div>
         <div class="buttons"><button class="button" type="button" onclick="openProjectPopup(${i})">Project</button></div>
