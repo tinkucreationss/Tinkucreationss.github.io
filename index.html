@@ -83,6 +83,11 @@ body.modal-open{overflow:hidden}.button{border:0;cursor:pointer;font-family:inhe
 .site-page .contact-box{padding:20px;background:#f5f8fc;border-radius:16px;margin-top:18px}
 @media(max-width:700px){.site-page h1{font-size:29px}.site-page p,.site-page li{font-size:15px}}
 </style>
+
+<style>
+.load-more-wrap{display:flex;justify-content:center;margin:28px auto 8px}.load-more-button{min-width:190px;padding:12px 28px;font-size:15px;border:0;cursor:pointer}.preview video{pointer-events:none}.preview .video-sound-toggle{pointer-events:auto}
+</style>
+
 </head>
 <body>
 <header class="site-header">
@@ -121,6 +126,7 @@ body.modal-open{overflow:hidden}.button{border:0;cursor:pointer;font-family:inhe
 </div>
 <div class="search-wrap"><span class="search-icon">⌕</span><input id="search" class="search" placeholder="Search (Ex: TC001, Wedding, 28)"></div>
 <div id="grid" class="grid" aria-live="polite"></div>
+<div id="loadMoreWrap" class="load-more-wrap" style="display:none"><button id="loadMoreButton" class="button load-more-button" type="button" onclick="loadMoreProjects()">Load more templates</button></div>
 </section>
 </div>
 
@@ -317,186 +323,144 @@ function closeProjectPopup(){
   document.body.classList.remove("modal-open");
 }
 let videoAutoplayObserver = null;
-let videoLoadObserver = null;
 let videoSoundEnabled = false;
 let activePreviewVideo = null;
+let previewTimers = new WeakMap();
+let pendingPreviewTimers = new Set();
+let previewVisibility = new WeakMap();
 
 function toggleVideoSound(event){
   event.preventDefault();
   event.stopPropagation();
-
-  const button = event.currentTarget;
-  const preview = button.closest(".preview");
-  const video = preview && preview.querySelector("video");
+  const video = event.currentTarget.closest(".preview")?.querySelector("video");
   if (!video) return;
-
   videoSoundEnabled = !videoSoundEnabled;
   document.querySelectorAll("#grid .preview video").forEach(item => {
     item.muted = !(videoSoundEnabled && item === video);
   });
-
-  document.querySelectorAll(".video-sound-toggle").forEach(item => {
-    item.textContent = videoSoundEnabled ? "🔊" : "🔇";
-    item.setAttribute("aria-label", videoSoundEnabled ? "Mute video" : "Enable video sound");
+  document.querySelectorAll(".video-sound-toggle").forEach(button => {
+    button.textContent = videoSoundEnabled ? "🔊" : "🔇";
+    button.setAttribute("aria-label", videoSoundEnabled ? "Mute video" : "Enable video sound");
   });
-
-  if (videoSoundEnabled) {
-    video.play().catch(() => {
-      video.muted = true;
-      videoSoundEnabled = false;
-      document.querySelectorAll("#grid .preview video").forEach(item => item.muted = true);
-      document.querySelectorAll(".video-sound-toggle").forEach(item => {
-        item.textContent = "🔇";
-        item.setAttribute("aria-label", "Enable video sound");
-      });
-    });
-  } else {
-    video.muted = true;
-  }
+  if (videoSoundEnabled) video.play().catch(() => { video.muted = true; videoSoundEnabled = false; });
+  else video.muted = true;
 }
 
 function setupVideoAutoplay(){
   if (videoAutoplayObserver) videoAutoplayObserver.disconnect();
-  if (videoLoadObserver) videoLoadObserver.disconnect();
-
+  pendingPreviewTimers.forEach(timer => clearTimeout(timer));
+  pendingPreviewTimers.clear();
+  previewTimers = new WeakMap();
+  previewVisibility = new WeakMap();
   const videos = Array.from(document.querySelectorAll("#grid .preview video"));
   activePreviewVideo = null;
   if (!videos.length) return;
 
-  // Keep videos unloaded until they are close to the screen.
-  videoLoadObserver = new IntersectionObserver(entries => {
-    entries.forEach(entry => {
-      if (!entry.isIntersecting) return;
-      const video = entry.target;
-      const source = video.querySelector("source[data-src]");
-      if (source && !source.src) {
-        source.src = source.dataset.src;
-        source.removeAttribute("data-src");
-        video.load();
-      }
-      videoLoadObserver.unobserve(video);
-    });
-  }, { rootMargin: "500px 0px", threshold: 0 });
-
-  videos.forEach(video => {
-    video.muted = true;
-    video.defaultMuted = true;
-    video.loop = true;
-    video.autoplay = false;
-    video.playsInline = true;
-    video.preload = "none";
-    video.removeAttribute("autoplay");
-    video.setAttribute("muted", "");
-    video.setAttribute("playsinline", "");
-    video.setAttribute("webkit-playsinline", "");
-
-    video.addEventListener("loadeddata", () => {
-      if (video === activePreviewVideo && !document.hidden) {
-        video.play().catch(() => {});
-      }
-    }, { once: true });
-
-    videoLoadObserver.observe(video);
-  });
-
-  function updateActiveVideo(){
-    if (document.hidden) {
-      videos.forEach(video => video.pause());
-      activePreviewVideo = null;
-      return;
+  const startPreview = video => {
+    if (!previewVisibility.get(video) || document.hidden) return;
+    if (activePreviewVideo && activePreviewVideo !== video) activePreviewVideo.pause();
+    activePreviewVideo = video;
+    const source = video.querySelector("source[data-src]");
+    if (source && !source.src) {
+      source.src = source.dataset.src;
+      source.removeAttribute("data-src");
+      video.load();
     }
-
-    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-    let bestVideo = null;
-    let bestRatio = 0;
-
-    videos.forEach(video => {
-      const rect = video.getBoundingClientRect();
-      const visibleHeight = Math.max(0, Math.min(rect.bottom, viewportHeight) - Math.max(rect.top, 0));
-      const ratio = rect.height ? visibleHeight / rect.height : 0;
-      if (ratio > bestRatio) {
-        bestRatio = ratio;
-        bestVideo = video;
+    const playWhenReady = () => {
+      if (previewVisibility.get(video) && !document.hidden) {
+        video.muted = !videoSoundEnabled;
+        video.play().catch(() => { video.muted = true; videoSoundEnabled = false; });
       }
-    });
-
-    const nextVideo = bestRatio >= 0.35 ? bestVideo : null;
-
-    videos.forEach(video => {
-      if (video !== nextVideo && !video.paused) video.pause();
-    });
-
-    if (nextVideo && nextVideo !== activePreviewVideo) {
-      activePreviewVideo = nextVideo;
-      const source = nextVideo.querySelector("source[data-src]");
-      if (source && !source.src) {
-        source.src = source.dataset.src;
-        source.removeAttribute("data-src");
-        nextVideo.load();
-      }
-      nextVideo.muted = !videoSoundEnabled;
-      nextVideo.play().catch(() => {
-        nextVideo.muted = true;
-        videoSoundEnabled = false;
-        document.querySelectorAll(".video-sound-toggle").forEach(button => {
-          button.textContent = "🔇";
-          button.setAttribute("aria-label", "Enable video sound");
-        });
-        nextVideo.play().catch(() => {});
-      });
-    } else if (!nextVideo) {
-      activePreviewVideo = null;
-    }
-  }
+    };
+    if (video.readyState >= 2) playWhenReady();
+    else video.addEventListener("loadeddata", playWhenReady, {once:true});
+  };
 
   if ("IntersectionObserver" in window) {
-    videoAutoplayObserver = new IntersectionObserver(updateActiveVideo, {
-      root: null,
-      rootMargin: "0px",
-      threshold: [0, 0.35, 0.5, 0.75, 1]
+    videoAutoplayObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        const video = entry.target;
+        const visible = entry.isIntersecting && entry.intersectionRatio >= 0.6;
+        previewVisibility.set(video, visible);
+        if (visible) {
+          if (!previewTimers.has(video)) {
+            // Keep the lightweight thumbnail visible for one full second first.
+            const timer = setTimeout(() => {
+              previewTimers.delete(video);
+              pendingPreviewTimers.delete(timer);
+              startPreview(video);
+            }, 1000);
+            previewTimers.set(video, timer);
+            pendingPreviewTimers.add(timer);
+          }
+        } else {
+          const timer = previewTimers.get(video);
+          if (timer) { clearTimeout(timer); pendingPreviewTimers.delete(timer); }
+          previewTimers.delete(video);
+          video.pause();
+          if (activePreviewVideo === video) activePreviewVideo = null;
+        }
+      });
+    }, {threshold:[0,0.6,0.85]});
+    videos.forEach(video => {
+      video.muted = true;
+      video.defaultMuted = true;
+      video.loop = true;
+      video.autoplay = false;
+      video.preload = "none";
+      video.playsInline = true;
+      video.setAttribute("muted", "");
+      video.setAttribute("playsinline", "");
+      video.setAttribute("webkit-playsinline", "");
+      videoAutoplayObserver.observe(video);
     });
-    videos.forEach(video => videoAutoplayObserver.observe(video));
+  } else {
+    videos.forEach(video => { video.muted=true; video.preload="none"; });
   }
+}
 
-  document.onvisibilitychange = handleVideoVisibility;
-  function handleVideoVisibility(){
-    if (document.hidden) {
-      videos.forEach(video => video.pause());
-      activePreviewVideo = null;
-    } else {
-      updateActiveVideo();
-    }
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    document.querySelectorAll("#grid video").forEach(video => video.pause());
+    activePreviewVideo = null;
   }
+});
 
-  // Fallback only for browsers without IntersectionObserver.
-  if (!("IntersectionObserver" in window)) {
-    window.addEventListener("scroll", updateActiveVideo, { passive: true });
-    window.addEventListener("resize", updateActiveVideo, { passive: true });
-  }
-  updateActiveVideo();
+let visibleProjectCount = 10;
+const PROJECTS_PER_BATCH = 10;
+let currentFilteredProjects = [];
+
+function loadMoreProjects(){
+  visibleProjectCount += PROJECTS_PER_BATCH;
+  render();
 }
 
 function render(){
-  const q = document.getElementById("search").value.toLowerCase().trim();
-  const list = projects.map((p,i)=>({p,i}))
+  const search = document.getElementById("search");
+  const q = search ? search.value.toLowerCase().trim() : "";
+  currentFilteredProjects = projects.map((p,i)=>({p,i}))
     .filter(({p}) => !q || p.title.toLowerCase().includes(q) || p.code.toLowerCase().includes(q))
     .sort((a,b) => {
       const na = parseInt((a.p.code || "").replace(/\D/g,""),10) || 0;
       const nb = parseInt((b.p.code || "").replace(/\D/g,""),10) || 0;
       return nb - na;
     });
-  document.getElementById("grid").innerHTML = list.map(({p,i}) => `
+  const shown = currentFilteredProjects.slice(0, visibleProjectCount);
+  document.getElementById("grid").innerHTML = shown.map(({p,i}) => `
     <article class="card">
-      <div class="preview">${p.video ? `<video muted loop playsinline webkit-playsinline preload="none" poster="${p.images && p.images[0] ? p.images[0] : ""}" aria-label="${p.title} preview" style="width:100%;height:100%;object-fit:contain;display:block;background:#000"><source data-src="${p.video}" type="video/mp4">Your browser does not support video playback.</video><button class="video-sound-toggle" type="button" onclick="toggleVideoSound(event)" aria-label="Enable video sound">🔇</button>` : p.images.map(x=>`<img src="${x}" alt="${p.title}">`).join("")}</div>
+      <div class="preview">${p.video ? `<video muted loop playsinline webkit-playsinline preload="none" poster="${p.images && p.images[0] ? p.images[0] : ""}" aria-label="${p.title} preview" style="width:100%;height:100%;object-fit:contain;display:block;background:#000"><source data-src="${p.video}" type="video/mp4">Your browser does not support video playback.</video><button class="video-sound-toggle" type="button" onclick="toggleVideoSound(event)" aria-label="Enable video sound">🔇</button>` : p.images.map(x=>`<img src="${x}" alt="${p.title}" loading="lazy">`).join("")}</div>
       <div class="card-body">
         <div class="title">${p.title}</div>
         <div class="buttons"><button class="button" type="button" onclick="openProjectPopup(${i})">Project</button></div>
       </div>
     </article>
   `).join("") || '<p style="text-align:center;color:#777">No projects found.</p>';
+  const moreWrap = document.getElementById("loadMoreWrap");
+  if (moreWrap) moreWrap.style.display = currentFilteredProjects.length > visibleProjectCount ? "flex" : "none";
   setupVideoAutoplay();
 }
-document.getElementById("search").addEventListener("input",render);
+
+document.getElementById("search").addEventListener("input",() => { visibleProjectCount = PROJECTS_PER_BATCH; render(); });
 
 
 document.addEventListener("click",e=>{if(e.target && e.target.id==="projectModal")closeProjectPopup()});
