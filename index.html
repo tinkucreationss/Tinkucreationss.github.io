@@ -317,6 +317,7 @@ function closeProjectPopup(){
   document.body.classList.remove("modal-open");
 }
 let videoAutoplayObserver = null;
+let videoLoadObserver = null;
 let videoSoundEnabled = false;
 let activePreviewVideo = null;
 
@@ -330,8 +331,6 @@ function toggleVideoSound(event){
   if (!video) return;
 
   videoSoundEnabled = !videoSoundEnabled;
-
-  // Only the currently visible video should be audible.
   document.querySelectorAll("#grid .preview video").forEach(item => {
     item.muted = !(videoSoundEnabled && item === video);
   });
@@ -358,35 +357,46 @@ function toggleVideoSound(event){
 
 function setupVideoAutoplay(){
   if (videoAutoplayObserver) videoAutoplayObserver.disconnect();
+  if (videoLoadObserver) videoLoadObserver.disconnect();
 
   const videos = Array.from(document.querySelectorAll("#grid .preview video"));
   activePreviewVideo = null;
-
   if (!videos.length) return;
+
+  // Keep videos unloaded until they are close to the screen.
+  videoLoadObserver = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      const video = entry.target;
+      const source = video.querySelector("source[data-src]");
+      if (source && !source.src) {
+        source.src = source.dataset.src;
+        source.removeAttribute("data-src");
+        video.load();
+      }
+      videoLoadObserver.unobserve(video);
+    });
+  }, { rootMargin: "500px 0px", threshold: 0 });
 
   videos.forEach(video => {
     video.muted = true;
     video.defaultMuted = true;
     video.loop = true;
-    video.autoplay = true;
+    video.autoplay = false;
     video.playsInline = true;
+    video.preload = "none";
+    video.removeAttribute("autoplay");
     video.setAttribute("muted", "");
-    video.setAttribute("autoplay", "");
     video.setAttribute("playsinline", "");
     video.setAttribute("webkit-playsinline", "");
-    video.preload = "auto";
 
-    // Retry playback once the browser has enough data to start.
     video.addEventListener("loadeddata", () => {
       if (video === activePreviewVideo && !document.hidden) {
         video.play().catch(() => {});
       }
-    });
-    video.addEventListener("canplay", () => {
-      if (video === activePreviewVideo && !document.hidden) {
-        video.play().catch(() => {});
-      }
-    });
+    }, { once: true });
+
+    videoLoadObserver.observe(video);
   });
 
   function updateActiveVideo(){
@@ -404,23 +414,26 @@ function setupVideoAutoplay(){
       const rect = video.getBoundingClientRect();
       const visibleHeight = Math.max(0, Math.min(rect.bottom, viewportHeight) - Math.max(rect.top, 0));
       const ratio = rect.height ? visibleHeight / rect.height : 0;
-
       if (ratio > bestRatio) {
         bestRatio = ratio;
         bestVideo = video;
       }
     });
 
-    // Start when a meaningful part of the preview is visible.
     const nextVideo = bestRatio >= 0.35 ? bestVideo : null;
 
     videos.forEach(video => {
-      if (video !== nextVideo) video.pause();
+      if (video !== nextVideo && !video.paused) video.pause();
     });
 
     if (nextVideo && nextVideo !== activePreviewVideo) {
       activePreviewVideo = nextVideo;
-      // Autoplay with sound is commonly blocked; start muted every time.
+      const source = nextVideo.querySelector("source[data-src]");
+      if (source && !source.src) {
+        source.src = source.dataset.src;
+        source.removeAttribute("data-src");
+        nextVideo.load();
+      }
       nextVideo.muted = !videoSoundEnabled;
       nextVideo.play().catch(() => {
         nextVideo.muted = true;
@@ -440,15 +453,26 @@ function setupVideoAutoplay(){
     videoAutoplayObserver = new IntersectionObserver(updateActiveVideo, {
       root: null,
       rootMargin: "0px",
-      threshold: [0, 0.1, 0.25, 0.35, 0.5, 0.75, 1]
+      threshold: [0, 0.35, 0.5, 0.75, 1]
     });
     videos.forEach(video => videoAutoplayObserver.observe(video));
   }
 
-  // Also check on scroll/resize: this helps browsers that batch observer updates.
-  window.onscroll = updateActiveVideo;
-  window.onresize = updateActiveVideo;
-  document.onvisibilitychange = updateActiveVideo;
+  document.onvisibilitychange = handleVideoVisibility;
+  function handleVideoVisibility(){
+    if (document.hidden) {
+      videos.forEach(video => video.pause());
+      activePreviewVideo = null;
+    } else {
+      updateActiveVideo();
+    }
+  }
+
+  // Fallback only for browsers without IntersectionObserver.
+  if (!("IntersectionObserver" in window)) {
+    window.addEventListener("scroll", updateActiveVideo, { passive: true });
+    window.addEventListener("resize", updateActiveVideo, { passive: true });
+  }
   updateActiveVideo();
 }
 
@@ -463,7 +487,7 @@ function render(){
     });
   document.getElementById("grid").innerHTML = list.map(({p,i}) => `
     <article class="card">
-      <div class="preview">${p.video ? `<video autoplay muted loop playsinline webkit-playsinline preload="auto" poster="${p.images && p.images[0] ? p.images[0] : ""}" aria-label="${p.title} preview" style="width:100%;height:100%;object-fit:contain;display:block;background:#000"><source src="${p.video}" type="video/mp4">Your browser does not support video playback.</video><button class="video-sound-toggle" type="button" onclick="toggleVideoSound(event)" aria-label="Enable video sound">🔇</button>` : p.images.map(x=>`<img src="${x}" alt="${p.title}">`).join("")}</div>
+      <div class="preview">${p.video ? `<video muted loop playsinline webkit-playsinline preload="none" poster="${p.images && p.images[0] ? p.images[0] : ""}" aria-label="${p.title} preview" style="width:100%;height:100%;object-fit:contain;display:block;background:#000"><source data-src="${p.video}" type="video/mp4">Your browser does not support video playback.</video><button class="video-sound-toggle" type="button" onclick="toggleVideoSound(event)" aria-label="Enable video sound">🔇</button>` : p.images.map(x=>`<img src="${x}" alt="${p.title}">`).join("")}</div>
       <div class="card-body">
         <div class="title">${p.title}</div>
         <div class="buttons"><button class="button" type="button" onclick="openProjectPopup(${i})">Project</button></div>
@@ -473,9 +497,9 @@ function render(){
   setupVideoAutoplay();
 }
 document.getElementById("search").addEventListener("input",render);
-window.addEventListener("DOMContentLoaded",render);
 
-document.getElementById("projectModal").addEventListener("click",e=>{if(e.target.id==="projectModal")closeProjectPopup()});
+
+document.addEventListener("click",e=>{if(e.target && e.target.id==="projectModal")closeProjectPopup()});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeProjectPopup()});
 try { render(); } catch (e) {
   const grid = document.getElementById("grid");
@@ -509,7 +533,7 @@ document.addEventListener("keydown",function(e){
 </script>
 <script>
 (function(){
-  function renderPage(){
+  function renderPage(resetScroll){
     var page = (location.hash || "#home").slice(1);
     var allowed = ["home","about","contact","instructions","privacy","terms","disclaimer"];
     if (!location.hash) page = "home";
@@ -533,10 +557,10 @@ document.addEventListener("keydown",function(e){
 
     var menu = document.getElementById("siteMenu");
     if (menu) menu.classList.remove("show");
-    window.scrollTo(0,0);
+    if (resetScroll) window.scrollTo({top:0, behavior:"instant"});
   }
-  window.addEventListener("hashchange", renderPage);
-  window.addEventListener("load", renderPage);
+  window.addEventListener("hashchange", function(){ renderPage(true); });
+  window.addEventListener("load", function(){ renderPage(false); });
 })();
 </script>
 </body>
