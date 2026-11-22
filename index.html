@@ -88,8 +88,6 @@ body.modal-open{overflow:hidden}.button{border:0;cursor:pointer;font-family:inhe
 .load-more-wrap{display:flex;justify-content:center;margin:28px auto 8px}.load-more-button{min-width:190px;padding:12px 28px;font-size:15px;border:0;cursor:pointer}.preview video{pointer-events:none}.preview .video-sound-toggle{pointer-events:auto}
 </style>
 
-<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5202465909659928"
-     crossorigin="anonymous"></script>
 </head>
 <body>
 <header class="site-header">
@@ -269,8 +267,9 @@ body.modal-open{overflow:hidden}.button{border:0;cursor:pointer;font-family:inhe
 </footer>
 </main></div>
 <script src="projects.js"></script>
+<script src="projects2.js"></script>
 <script>
-
+const projects = [...window.PROJECTS_PART1, ...window.PROJECTS_PART2];
 function getFonts(p){
   if(Array.isArray(p.fonts)) return p.fonts.filter(Boolean);
   if(typeof p.fonts === "string" && p.fonts.trim()) return [p.fonts];
